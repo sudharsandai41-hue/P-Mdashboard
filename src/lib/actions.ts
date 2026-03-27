@@ -135,6 +135,20 @@ export async function deleteSkill(skillId: string) {
   revalidatePath("/admin");
 }
 
+export async function updateSkill(skillId: string, formData: FormData) {
+  const title = formData.get("title") as string;
+  const description = formData.get("description") as string;
+
+  const { error } = await supabase
+    .from('skills')
+    .update({ title, description })
+    .eq('id', skillId);
+
+  if (error) console.error("Error updating skill:", error.message);
+
+  revalidatePath("/admin");
+}
+
 export async function submitFeedback(taskId: string, feedback: string) {
   const { error } = await supabase
     .from('tasks')

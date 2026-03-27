@@ -1,7 +1,9 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
-import { getDatabase, updateScore, addTask, bulkAddTasks, deleteTask, addSkill, deleteSkill } from "@/lib/actions";
+import { getDatabase, updateScore, addTask, bulkAddTasks, deleteTask, addSkill, deleteSkill, updateSkill } from "@/lib/actions";
 import DeleteButton from "@/components/DeleteButton";
+
+import EditableSkillRow from "@/components/EditableSkillRow";
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const db = await getDatabase();
@@ -239,13 +241,12 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                   </div>
                   <div className="divide-y divide-brand-border">
                      {db.skills && db.skills.map((skill: any) => (
-                        <div key={skill.id} className="p-6 flex justify-between items-start hover:bg-brand-bg transition">
-                           <div>
-                              <h3 className="font-bold text-lg">{skill.title}</h3>
-                              <p className="text-sm text-brand-muted mt-1">{skill.description}</p>
-                           </div>
-                           <DeleteButton action={deleteSkill.bind(null, skill.id)} />
-                        </div>
+                        <EditableSkillRow 
+                           key={skill.id} 
+                           skill={skill} 
+                           updateAction={updateSkill.bind(null, skill.id)} 
+                           deleteAction={deleteSkill.bind(null, skill.id)} 
+                        />
                      ))}
                      {(!db.skills || db.skills.length === 0) && (
                         <div className="p-8 text-center text-brand-muted font-bold">
