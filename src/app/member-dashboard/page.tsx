@@ -34,6 +34,9 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
   const memberTasks = allTeamTasks.filter((t: any) => 
      isSuperUser ? true : t.assignedTo.toLowerCase() === userName.toLowerCase()
   );
+
+  const memberSkills = memberTasks.filter((t: any) => t.type === 'skill');
+  const memberActualTasks = memberTasks.filter((t: any) => !t.type || t.type === 'task');
   
   // Scoring logic
   const userScoredTasks = memberTasks.filter((t: any) => t.score !== null);
@@ -74,69 +77,30 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
           
           {memberTasks.length === 0 && (
              <div className="p-8 bg-brand-card rounded-2xl border border-brand-border text-center font-bold text-brand-muted shadow-sm">
-               No tasks currently assigned to you, {userName}.
+               No tasks or training currently assigned to you, {userName}.
              </div>
           )}
 
-          {memberTasks.map((task: any) => (
-             <div key={task.id} className="bg-brand-card border border-brand-border shadow-sm rounded-2xl p-8 relative overflow-hidden">
-               {/* Accent Glow */}
-               <div className="absolute top-0 right-0 w-48 h-48 bg-[#BCE2C2]/30 rounded-bl-full blur-[60px] pointer-events-none"></div>
-               
-               <div className="flex justify-between items-start mb-6">
-                 <div>
-                    <h3 className="text-xl font-bold text-brand-text">{task.title}</h3>
-                    {isSuperUser && <p className="text-sm font-bold text-[#5A87A8] mt-1">Assigned To: {task.assignedTo}</p>}
-                    {task.updatedAt && <p className="text-xs text-brand-muted mt-2">Last updated: {new Date(task.updatedAt).toLocaleDateString()}</p>}
-                 </div>
-                 {task.status === "Scored" ? (
-                    <span className="px-4 py-1.5 bg-green-50 text-green-700 text-xs rounded-full font-bold shadow-sm whitespace-nowrap">Scored</span>
-                 ) : (
-                    <span className="px-4 py-1.5 bg-[#F7E7A6]/50 text-amber-800 text-xs rounded-full font-bold shadow-sm whitespace-nowrap uppercase tracking-wider">{task.status}</span>
-                 )}
-               </div>
-               
-               {/* SCORE DISPLAY LOGIC */}
-               {teamType === "3D Team" ? (
-                  <div className={`mb-6 p-4 rounded-xl font-bold ${task.status === "Scored" ? 'text-green-700 bg-green-50 border border-green-200' : 'text-amber-700 bg-amber-50 border border-amber-200'}`}>
-                      {task.status === "Scored" ? `✓ Training Module Evaluated Successfully` : `Training in Progress (Submission Pending Admin Review)`}
-                  </div>
-               ) : (
-                  <div className={`mb-6 p-4 rounded-xl font-bold ${task.status === "Scored" ? 'text-green-700 bg-green-50 border border-green-200' : 'text-amber-700 bg-amber-50 border border-amber-200'}`}>
-                      {task.status === "Scored" ? `Admin Scored: ${task.score}%` : `N/A (Awaiting Score)`}
-                  </div>
-               )}
-
-               <div className="flex gap-4 items-end mt-6">
-                 <form className="flex-1 space-y-2 relative z-10" action={async (formData) => {
-                    "use server"
-                    await submitFeedback(task.id, formData.get("feedback") as string);
-                 }}>
-                   <label className="text-sm font-bold text-brand-muted">Your Workflow Feedback Highlights</label>
-                   <div className="flex gap-2">
-                       <input 
-                          type="text" 
-                          name="feedback"
-                          defaultValue={task.feedback || ""}
-                          placeholder="e.g. Generated initial concept via Midjourney..."
-                          className="w-full bg-brand-input border border-brand-border p-3 rounded-lg font-medium outline-none focus:ring-2 focus:ring-[#C8B6E2]"
-                       />
-                       <button className="px-5 py-3 bg-[#A9CBE2] hover:bg-[#8eb8d4] text-[#1c3f55] font-bold rounded-lg transition white-space-nowrap shadow-sm">
-                         Update
-                       </button>
-                   </div>
-                 </form>
-               </div>
-
-               {task.driveLink && (
-                  <div className="mt-6 pt-6 border-t border-brand-border relative z-10">
-                     <a href={task.driveLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-[#C8B6E2] font-extrabold hover:text-[#a58dc7] transition">
-                        🔗 Open Google Drive Reference
-                     </a>
-                  </div>
-               )}
+          {/* SKILLS SECTION */}
+          {memberSkills.length > 0 && (
+             <div className="pt-2">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-[#5A87A8] border-b-2 border-[#A9CBE2] inline-block pb-1 mb-4">Skills (Training)</h3>
+                <div className="space-y-6">
+                   {memberSkills.map((task: any) => <TaskCard key={task.id} task={task} isSuperUser={isSuperUser} teamType={teamType} />)}
+                </div>
              </div>
-          ))}
+          )}
+
+          {/* TASKS SECTION */}
+          {memberActualTasks.length > 0 && (
+             <div className="pt-6 border-t border-brand-border/50">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-[#c24f79] border-b-2 border-[#F3C4D6] inline-block pb-1 mb-4">Tasks (Work)</h3>
+                <div className="space-y-6">
+                   {memberActualTasks.map((task: any) => <TaskCard key={task.id} task={task} isSuperUser={isSuperUser} teamType={teamType} />)}
+                </div>
+             </div>
+          )}
+
         </section>
 
         {/* Right Section: Scorecard & Team */}
@@ -183,7 +147,7 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
                    </>
                 )}
                 <div className="flex justify-between text-sm items-center pt-2">
-                   <span className="text-brand-muted font-bold">Tasks Assigned</span>
+                   <span className="text-brand-muted font-bold">Total Assigned</span>
                    <span className="font-extrabold text-brand-text">{memberTasks.length}</span>
                 </div>
               </div>
@@ -248,6 +212,75 @@ export default async function MemberDashboard({ searchParams }: { searchParams: 
 
         </div>
       </div>
+    </div>
+  );
+}
+
+// Subcomponent to render a Task Card identically with isolated logic
+function TaskCard({ task, isSuperUser, teamType }: { task: any, isSuperUser: boolean, teamType: string }) {
+  return (
+    <div className="bg-brand-card border border-brand-border shadow-sm rounded-2xl p-8 relative overflow-hidden">
+      {/* Accent Glow Based on Type */}
+      {task.type === 'skill' ? (
+         <div className="absolute top-0 right-0 w-48 h-48 bg-[#A9CBE2]/20 rounded-bl-full blur-[60px] pointer-events-none"></div>
+      ) : (
+         <div className="absolute top-0 right-0 w-48 h-48 bg-[#BCE2C2]/30 rounded-bl-full blur-[60px] pointer-events-none"></div>
+      )}
+      
+      <div className="flex justify-between items-start mb-6">
+        <div>
+           <h3 className="text-xl font-bold text-brand-text break-words pr-4">{task.title}</h3>
+           {isSuperUser && <p className="text-sm font-bold text-[#5A87A8] mt-1">Assigned To: {task.assignedTo}</p>}
+           {task.updatedAt && <p className="text-xs text-brand-muted mt-2">Last updated: {new Date(task.updatedAt).toLocaleDateString()}</p>}
+        </div>
+        {task.status === "Scored" ? (
+           <span className="px-4 py-1.5 bg-green-50 text-green-700 text-xs rounded-full font-bold shadow-sm whitespace-nowrap">{(task.type === 'skill' && teamType !== '3D Team') ? 'Completed' : 'Scored'}</span>
+        ) : (
+           <span className="px-4 py-1.5 bg-[#F7E7A6]/50 text-amber-800 text-xs rounded-full font-bold shadow-sm whitespace-nowrap uppercase tracking-wider">{task.status}</span>
+        )}
+      </div>
+      
+      {/* SCORE DISPLAY LOGIC */}
+      {teamType === "3D Team" || task.type === "skill" ? (
+         <div className={`mb-6 p-4 rounded-xl font-bold ${task.status === "Scored" ? 'text-green-700 bg-green-50 border border-green-200' : 'text-amber-700 bg-amber-50 border border-amber-200'}`}>
+             {task.status === "Scored" 
+                ? (task.score !== null ? `Evaluation Scored: ${task.score}%` : `✓ Training Module Completed Successfully`) 
+                : `Training in Progress (Submission Pending Admin Review)`}
+         </div>
+      ) : (
+         <div className={`mb-6 p-4 rounded-xl font-bold ${task.status === "Scored" ? 'text-green-700 bg-green-50 border border-green-200' : 'text-amber-700 bg-amber-50 border border-amber-200'}`}>
+             {task.status === "Scored" ? `Admin Scored: ${task.score}%` : `N/A (Awaiting Score)`}
+         </div>
+      )}
+
+      <div className="flex gap-4 items-end mt-6">
+        <form className="flex-1 space-y-2 relative z-10" action={async (formData) => {
+           "use server"
+           await submitFeedback(task.id, formData.get("feedback") as string);
+        }}>
+          <label className="text-sm font-bold text-brand-muted">Your Workflow Feedback Highlights</label>
+          <div className="flex gap-2">
+              <input 
+                 type="text" 
+                 name="feedback"
+                 defaultValue={task.feedback || ""}
+                 placeholder="e.g. Generated initial concept via Midjourney..."
+                 className="w-full bg-brand-input border border-brand-border p-3 rounded-lg font-medium outline-none focus:ring-2 focus:ring-[#C8B6E2]"
+              />
+              <button className="px-5 py-3 bg-[#A9CBE2] hover:bg-[#8eb8d4] text-[#1c3f55] font-bold rounded-lg transition whitespace-nowrap shadow-sm">
+                Update
+              </button>
+          </div>
+        </form>
+      </div>
+
+      {task.driveLink && (
+         <div className="mt-6 pt-6 border-t border-brand-border relative z-10">
+            <a href={task.driveLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-[#C8B6E2] font-extrabold hover:text-[#a58dc7] transition">
+               🔗 Open Google Drive Reference
+            </a>
+         </div>
+      )}
     </div>
   );
 }

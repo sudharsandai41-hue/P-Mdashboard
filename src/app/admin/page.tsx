@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
-import { getDatabase, updateScore, addTask } from "@/lib/actions";
+import { getDatabase, updateScore, addTask, bulkAddTasks, deleteTask, addSkill, deleteSkill } from "@/lib/actions";
+import DeleteButton from "@/components/DeleteButton";
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const db = await getDatabase();
@@ -8,34 +9,40 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
   const activeTab = resolvedParams.tab || "inbox";
 
   return (
-    <div className="flex min-h-screen bg-brand-bg text-brand-text">
+    <div className="flex bg-brand-bg text-brand-text h-screen overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-brand-border p-6 flex flex-col gap-6 bg-brand-card shadow-sm hidden md:flex min-h-screen">
-        <div className="scale-75 origin-top-left mb-4">
+      <aside className="w-64 border-r border-brand-border p-6 flex flex-col gap-4 bg-brand-card shadow-sm hidden md:flex h-full overflow-y-auto">
+        <div className="scale-75 origin-top-left mb-2">
            <Logo />
         </div>
         <h2 className="text-xl font-bold uppercase tracking-wider text-brand-muted text-sm">Admin Panel</h2>
         <nav className="flex flex-col gap-2">
-          <Link href="/admin?tab=overview" className={`px-4 py-3 rounded-lg font-bold transition ${activeTab === 'overview' ? 'bg-[#E6D4AA]/30 text-brand-text border border-[#E6D4AA]' : 'hover:bg-brand-bg text-brand-muted border border-transparent'}`}>Overview</Link>
-          <Link href="/admin?tab=members" className={`px-4 py-3 rounded-lg font-bold transition ${activeTab === 'members' ? 'bg-[#C8B6E2]/30 text-brand-text border border-[#C8B6E2]' : 'hover:bg-brand-bg text-brand-muted border border-transparent'}`}>Team Members</Link>
-          <Link href="/admin?tab=tasks" className={`px-4 py-3 rounded-lg font-bold transition ${activeTab === 'tasks' ? 'bg-[#F3C4D6]/30 text-brand-text border border-[#F3C4D6]' : 'hover:bg-brand-bg text-brand-muted border border-transparent'}`}>Assign Tasks</Link>
-          <Link href="/admin?tab=inbox" className={`px-4 py-3 rounded-lg font-bold transition ${activeTab === 'inbox' ? 'bg-[#BCE2C2]/30 text-brand-text border border-[#BCE2C2]' : 'hover:bg-brand-bg text-brand-muted border border-transparent'}`}>AI Scoring Inbox</Link>
+          <Link href="/admin?tab=overview" className={`px-4 py-2 rounded-lg font-bold transition ${activeTab === 'overview' ? 'bg-[#E6D4AA]/30 text-brand-text border border-[#E6D4AA]' : 'hover:bg-brand-bg text-brand-muted border border-transparent'}`}>Overview</Link>
+          <Link href="/admin?tab=members" className={`px-4 py-2 rounded-lg font-bold transition ${activeTab === 'members' ? 'bg-[#C8B6E2]/30 text-brand-text border border-[#C8B6E2]' : 'hover:bg-brand-bg text-brand-muted border border-transparent'}`}>Team Members</Link>
+          <Link href="/admin?tab=inbox" className={`px-4 py-2 rounded-lg font-bold transition ${activeTab === 'inbox' ? 'bg-[#BCE2C2]/30 text-brand-text border border-[#BCE2C2]' : 'hover:bg-brand-bg text-brand-muted border border-transparent'}`}>AI Scoring Inbox</Link>
+          
+          <div className="my-1 border-t border-brand-border"></div>
+          
+          <Link href="/admin?tab=tasks" className={`px-4 py-2 rounded-lg font-bold transition ${activeTab === 'tasks' ? 'bg-[#F3C4D6]/30 text-brand-text border border-[#F3C4D6]' : 'hover:bg-brand-bg text-brand-muted border border-transparent'}`}>+ Assign Task</Link>
+          <Link href="/admin?tab=bulk-tasks" className={`px-4 py-2 rounded-lg font-bold transition ${activeTab === 'bulk-tasks' ? 'bg-[#F3C4D6]/30 text-brand-text border border-[#F3C4D6]' : 'hover:bg-brand-bg text-brand-muted border border-transparent'}`}>+ Bulk Assign Task</Link>
+
+          <div className="my-1 border-t border-brand-border"></div>
+
+          <Link href="/admin?tab=skills" className={`px-4 py-2 rounded-lg font-bold transition ${activeTab === 'skills' ? 'bg-[#A9CBE2]/30 text-brand-text border border-[#A9CBE2]' : 'hover:bg-brand-bg text-brand-muted border border-transparent'}`}>Manage Skills</Link>
+          <Link href="/admin?tab=assign-skills" className={`px-4 py-2 rounded-lg font-bold transition ${activeTab === 'assign-skills' ? 'bg-[#A9CBE2]/30 text-brand-text border border-[#A9CBE2]' : 'hover:bg-brand-bg text-brand-muted border border-transparent'}`}>+ Assign Skills</Link>
         </nav>
-        <div className="mt-auto">
+        <div className="mt-auto pt-4 border-t border-brand-border">
           <Link href="/" className="px-4 py-3 hover:bg-red-50 hover:text-red-600 rounded-lg w-full text-left transition block text-brand-muted font-bold">Logout</Link>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-8 h-full overflow-y-auto">
         
         {activeTab === "inbox" && (
           <div>
             <header className="flex justify-between items-center mb-8">
               <h1 className="text-3xl font-bold tracking-tight text-brand-text">AI Evaluation Inbox</h1>
-              <button className="bg-brand-text text-brand-bg px-6 py-3 rounded-xl font-bold hover:bg-black transition shadow-lg">
-                Trigger Bulk Score
-              </button>
             </header>
 
             <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden shadow-sm">
@@ -46,13 +53,17 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                     <th className="p-5 font-bold uppercase tracking-wider">Submission Task</th>
                     <th className="p-5 font-bold uppercase tracking-wider">Status</th>
                     <th className="p-5 font-bold uppercase tracking-wider">Modify AI Score</th>
+                    <th className="p-5 font-bold uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-border text-sm">
                   {db.tasks.map((task: any) => (
                     <tr key={task.id} className="hover:bg-brand-bg transition">
                       <td className="p-5 font-bold">{task.assignedTo} <span className="font-normal text-brand-muted ml-2 text-xs">({task.team})</span></td>
-                      <td className="p-5 font-medium">{task.title}</td>
+                      <td className="p-5 font-medium">
+                        {task.type === 'skill' ? <span className="bg-[#A9CBE2]/20 text-[#5A87A8] px-2 py-1 rounded text-xs mr-2 border border-[#A9CBE2]/50 font-bold uppercase">Skill</span> : null}
+                        {task.title}
+                      </td>
                       <td className="p-5">
                         {task.status === "Scored" ? (
                           <span className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold">Scored</span>
@@ -85,14 +96,23 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                           </button>
                         </form>
                       </td>
+                      <td className="p-5">
+                         <DeleteButton action={deleteTask.bind(null, task.id)} />
+                      </td>
                     </tr>
                   ))}
+                  {db.tasks.length === 0 && (
+                     <tr>
+                        <td colSpan={5} className="p-5 text-center text-brand-muted font-bold">No tasks in the inbox.</td>
+                     </tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
+        {/* --- Assign Task (Single) --- */}
         {activeTab === "tasks" && (
            <div>
             <header className="mb-8">
@@ -101,6 +121,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             
             <div className="bg-brand-card p-8 border border-brand-border rounded-2xl max-w-2xl shadow-sm">
                <form action={addTask} className="space-y-6">
+                 <input type="hidden" name="type" value="task" />
                  <div>
                    <label className="block text-sm font-bold text-brand-muted mb-2">Task Title</label>
                    <input required name="title" type="text" className="w-full bg-brand-input border border-brand-border rounded-lg p-4 font-medium" placeholder="Describe the task..." />
@@ -137,7 +158,162 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
            </div>
         )}
 
-        {/* Members and Overview views untouched (from previous steps) */}
+        {/* --- Bulk Assign Task --- */}
+        {activeTab === "bulk-tasks" && (
+           <div>
+            <header className="mb-8">
+              <h1 className="text-3xl font-bold tracking-tight text-brand-text">Bulk Assign Task</h1>
+              <p className="text-brand-muted mt-2">Deploy a single identical task across multiple members instantly.</p>
+            </header>
+            
+            <div className="bg-brand-card p-8 border border-brand-border rounded-2xl max-w-2xl shadow-sm">
+               <form action={bulkAddTasks} className="space-y-6">
+                 <input type="hidden" name="type" value="task" />
+                 <div>
+                   <label className="block text-sm font-bold text-brand-muted mb-2">Task Title</label>
+                   <input required name="title" type="text" className="w-full bg-brand-input border border-brand-border rounded-lg p-4 font-medium" placeholder="Describe the task..." />
+                 </div>
+
+                 <div>
+                   <label className="block text-sm font-bold text-brand-muted mb-2">Google Drive Link (Optional)</label>
+                   <input name="driveLink" type="url" className="w-full bg-brand-input border border-brand-border rounded-lg p-4 font-medium" placeholder="https://drive.google.com/..." />
+                 </div>
+                 
+                 <div>
+                   <label className="block text-sm font-bold text-brand-muted mb-2">Select Members</label>
+                   <div className="grid grid-cols-2 gap-3 p-4 bg-brand-input border border-brand-border rounded-lg max-h-64 overflow-y-auto">
+                     {db.teams.map((team: any) => (
+                         <div key={team.name} className="col-span-2 mt-2 mb-1">
+                             <h4 className="font-bold text-xs uppercase tracking-widest text-[#BCE2C2]">{team.name}</h4>
+                             <div className="grid grid-cols-2 gap-2 mt-2">
+                               {team.members.map((member: string) => (
+                                 <label key={member} className="flex items-center gap-2 text-sm font-bold cursor-pointer">
+                                    <input type="checkbox" name="assignedTo" value={member} className="w-4 h-4 rounded text-[#BCE2C2]" />
+                                    {member}
+                                 </label>
+                               ))}
+                             </div>
+                         </div>
+                     ))}
+                   </div>
+                 </div>
+
+                 <button type="submit" className="w-full py-4 bg-[#BCE2C2] hover:bg-[#a6d1ad] text-[#2c5332] font-bold rounded-xl transition shadow-sm">
+                   Bulk Assign to Selected
+                 </button>
+               </form>
+            </div>
+           </div>
+        )}
+
+        {/* --- Manage Skills --- */}
+        {activeTab === "skills" && (
+           <div>
+            <header className="mb-8">
+              <h1 className="text-3xl font-bold tracking-tight text-brand-text">Manage Training Skills</h1>
+            </header>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+               <div className="bg-brand-card p-8 border border-brand-border rounded-2xl shadow-sm">
+                 <h2 className="text-xl font-bold mb-6 text-brand-text">+ Add New Skill</h2>
+                 <form action={addSkill} className="space-y-6">
+                   <div>
+                     <label className="block text-sm font-bold text-brand-muted mb-2">Skill Title</label>
+                     <input required name="title" type="text" className="w-full bg-brand-input border border-brand-border rounded-lg p-4 font-medium" placeholder="e.g. AI Workflow in 3ds Max" />
+                   </div>
+                   
+                   <div>
+                     <label className="block text-sm font-bold text-brand-muted mb-2">Description</label>
+                     <textarea name="description" rows={3} className="w-full bg-brand-input border border-brand-border rounded-lg p-4 font-medium" placeholder="Briefly describe the training curriculum..."></textarea>
+                   </div>
+                   
+                   <button type="submit" className="w-full py-4 bg-[#A9CBE2] hover:bg-[#8bb4ce] text-[#1c3f55] font-bold rounded-xl transition shadow-sm">
+                     Create Skill
+                   </button>
+                 </form>
+               </div>
+
+               <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden shadow-sm p-0">
+                  <div className="p-6 border-b border-brand-border bg-brand-bg">
+                    <h2 className="text-xl font-bold text-brand-text">Skills Catalog</h2>
+                  </div>
+                  <div className="divide-y divide-brand-border">
+                     {db.skills && db.skills.map((skill: any) => (
+                        <div key={skill.id} className="p-6 flex justify-between items-start hover:bg-brand-bg transition">
+                           <div>
+                              <h3 className="font-bold text-lg">{skill.title}</h3>
+                              <p className="text-sm text-brand-muted mt-1">{skill.description}</p>
+                           </div>
+                           <DeleteButton action={deleteSkill.bind(null, skill.id)} />
+                        </div>
+                     ))}
+                     {(!db.skills || db.skills.length === 0) && (
+                        <div className="p-8 text-center text-brand-muted font-bold">
+                           No skills registered in the catalog yet.
+                        </div>
+                     )}
+                  </div>
+               </div>
+            </div>
+           </div>
+        )}
+
+        {/* --- Assign Skills --- */}
+        {activeTab === "assign-skills" && (
+           <div>
+            <header className="mb-8">
+              <h1 className="text-3xl font-bold tracking-tight text-brand-text">Deploy Skills to Team</h1>
+              <p className="text-brand-muted mt-2">Assign modules from the Training Catalog directly to member dashboards.</p>
+            </header>
+            
+            <div className="bg-brand-card p-8 border border-brand-border rounded-2xl max-w-2xl shadow-sm">
+               <form action={bulkAddTasks} className="space-y-6">
+                 <input type="hidden" name="type" value="skill" />
+                 
+                 <div>
+                   <label className="block text-sm font-bold text-brand-muted mb-2">Select Skill from Catalog</label>
+                   <select required name="title" className="w-full bg-brand-input border border-brand-border rounded-lg p-4 font-medium appearance-none">
+                     <option value="">-- Choose a Skill --</option>
+                     {db.skills?.map((skill: any) => (
+                         <option key={skill.id} value={skill.title}>{skill.title}</option>
+                     ))}
+                   </select>
+                   {(!db.skills || db.skills.length === 0) && <p className="text-xs text-amber-600 mt-2 font-bold">Catalog is empty. Please add skills first.</p>}
+                 </div>
+
+                 <div>
+                   <label className="block text-sm font-bold text-brand-muted mb-2">Google Drive Resource Link (Optional)</label>
+                   <input name="driveLink" type="url" className="w-full bg-brand-input border border-brand-border rounded-lg p-4 font-medium" placeholder="https://drive.google.com/..." />
+                 </div>
+                 
+                 <div>
+                   <label className="block text-sm font-bold text-brand-muted mb-2">Select Members</label>
+                   <div className="grid grid-cols-2 gap-3 p-4 bg-brand-input border border-brand-border rounded-lg max-h-64 overflow-y-auto">
+                     {db.teams.map((team: any) => (
+                         <div key={team.name} className="col-span-2 mt-2 mb-1">
+                             <h4 className="font-bold text-xs uppercase tracking-widest text-[#A9CBE2]">{team.name}</h4>
+                             <div className="grid grid-cols-2 gap-2 mt-2">
+                               {team.members.map((member: string) => (
+                                 <label key={member} className="flex items-center gap-2 text-sm font-bold cursor-pointer">
+                                    <input type="checkbox" name="assignedTo" value={member} className="w-4 h-4 rounded text-[#A9CBE2]" />
+                                    {member}
+                                 </label>
+                               ))}
+                             </div>
+                         </div>
+                     ))}
+                   </div>
+                 </div>
+
+                 <button type="submit" className="w-full py-4 bg-[#A9CBE2] hover:bg-[#8bb4ce] text-[#1c3f55] font-bold rounded-xl transition shadow-sm">
+                   Bulk Assign Skill to Selected
+                 </button>
+               </form>
+            </div>
+           </div>
+        )}
+
+        {/* --- Members Roster --- */}
         {activeTab === "members" && (
           <div>
             <header className="mb-8">
@@ -160,13 +336,14 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
           </div>
         )}
 
+        {/* --- Overview --- */}
         {activeTab === "overview" && (
            <div className="flex flex-col items-center justify-center p-24 text-center">
              <div className="w-24 h-24 bg-brand-input rounded-full mb-6 flex items-center justify-center opacity-50">
                 <Logo />
              </div>
              <h2 className="text-2xl font-bold text-brand-muted">This module is under construction</h2>
-             <p className="text-brand-muted mt-2">Use the AI Scoring Inbox to evaluate submissions.</p>
+             <p className="text-brand-muted mt-2">Use the Sidebar to navigate through the new Admin modules.</p>
            </div>
         )}
 

@@ -12,10 +12,12 @@ export async function getDatabase() {
   // Fetch from Supabase Cloud
   const { data: teamsData } = await supabase.from('teams').select('*');
   const { data: tasksData } = await supabase.from('tasks').select('*');
+  const { data: skillsData } = await supabase.from('skills').select('*');
 
   return {
     teams: teamsData || [],
-    tasks: tasksData || []
+    tasks: tasksData || [],
+    skills: skillsData || []
   };
 }
 
@@ -42,6 +44,7 @@ export async function addTask(formData: FormData) {
   const assignedTo = formData.get("assignedTo") as string;
   const team = formData.get("team") as string;
   const driveLink = formData.get("driveLink") as string;
+  const type = (formData.get("type") as string) || "task";
 
   const newTask = {
     id: "t_" + Date.now().toString(),
@@ -52,7 +55,8 @@ export async function addTask(formData: FormData) {
     score: null,
     driveLink: driveLink || "",
     feedback: "",
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    type
   };
 
   const { error } = await supabase.from('tasks').insert([newTask]);
@@ -61,6 +65,74 @@ export async function addTask(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/member-dashboard");
   revalidatePath("/main-dashboard");
+}
+
+export async function bulkAddTasks(formData: FormData) {
+  const title = formData.get("title") as string;
+  const driveLink = formData.get("driveLink") as string;
+  const type = (formData.get("type") as string) || "task";
+  const members = formData.getAll("assignedTo") as string[]; 
+  
+  if (!members || members.length === 0) return;
+
+  const { data: teamsData } = await supabase.from('teams').select('*');
+  
+  const newTasks = members.map(member => {
+    const tData = teamsData?.find(t => t.members.includes(member));
+    const team = tData ? tData.name : "General";
+    
+    return {
+      id: "t_" + Date.now().toString() + "_" + Math.random().toString(36).substring(7),
+      team,
+      title,
+      assignedTo: member,
+      status: "Review",
+      score: null,
+      driveLink: driveLink || "",
+      feedback: "",
+      updatedAt: new Date().toISOString(),
+      type
+    };
+  });
+
+  const { error } = await supabase.from('tasks').insert(newTasks);
+  if (error) console.error("Error bulk creating tasks:", error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/member-dashboard");
+  revalidatePath("/main-dashboard");
+}
+
+export async function deleteTask(taskId: string) {
+  const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+  if (error) console.error("Error deleting task:", error.message);
+  
+  revalidatePath("/admin");
+  revalidatePath("/main-dashboard");
+  revalidatePath("/member-dashboard");
+}
+
+export async function addSkill(formData: FormData) {
+  const title = formData.get("title") as string;
+  const description = formData.get("description") as string;
+
+  const newSkill = {
+    id: "s_" + Date.now().toString(),
+    title,
+    description: description || ""
+  };
+
+  const { error } = await supabase.from('skills').insert([newSkill]);
+  if (error) console.error("Error adding skill:", error.message);
+
+  revalidatePath("/admin");
+}
+
+export async function deleteSkill(skillId: string) {
+  const { error } = await supabase.from('skills').delete().eq('id', skillId);
+  if (error) console.error("Error deleting skill:", error.message);
+
+  revalidatePath("/admin");
 }
 
 export async function submitFeedback(taskId: string, feedback: string) {
