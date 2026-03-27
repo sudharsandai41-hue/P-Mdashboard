@@ -1,14 +1,96 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
-import { getDatabase, updateScore, addTask, bulkAddTasks, deleteTask, addSkill, deleteSkill, updateSkill } from "@/lib/actions";
+import { getDatabase, updateScore, addTask, bulkAddTasks, deleteTask, updateTask, addSkill, deleteSkill, updateSkill } from "@/lib/actions";
 import DeleteButton from "@/components/DeleteButton";
-
 import EditableSkillRow from "@/components/EditableSkillRow";
+import EditableTaskRow from "@/components/EditableTaskRow";
+import AdminInboxFilters from "@/components/AdminInboxFilters";
 
-export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ tab?: string, search?: string, team?: string, status?: string, type?: string, sort?: string, page?: string }> }) {
   const db = await getDatabase();
   const resolvedParams = await searchParams;
   const activeTab = resolvedParams.tab || "inbox";
+  
+  // --- INBOX FILTERING LOGIC ---
+  let filteredTasks = [...db.tasks];
+
+  const q = resolvedParams.search?.toLowerCase();
+  if (q) {
+     filteredTasks = filteredTasks.filter(t => 
+       t.title.toLowerCase().includes(q) || t.assignedTo.toLowerCase().includes(q)
+     );
+  }
+  if (resolvedParams.team) {
+     filteredTasks = filteredTasks.filter(t => t.team === resolvedParams.team);
+  }
+  if (resolvedParams.status) {
+     filteredTasks = filteredTasks.filter(t => t.status === resolvedParams.status);
+  }
+  if (resolvedParams.type) {
+     filteredTasks = filteredTasks.filter(t => resolvedParams.type === 'task' ? (!t.type || t.type === 'task') : t.type === resolvedParams.type);
+  }
+  
+  const sortParam = resolvedParams.sort || "latest";
+  filteredTasks.sort((a, b) => {
+     if (sortParam === "latest") {
+        return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+     } else if (sortParam === "oldest") {
+        return new Date(a.updatedAt || 0).getTime() - new Date(b.updatedAt || 0).getTime();
+     } else if (sortParam === "score_high") {
+        return (b.score || 0) - (a.score || 0);
+     } else if (sortParam === "score_low") {
+        const scoreA = a.score !== null ? a.score : Infinity;
+        const scoreB = b.score !== null ? b.score : Infinity;
+        return scoreA - scoreB;
+     }
+     return 0;
+  });
+
+  const ITEMS_PER_PAGE = 15;
+  const currentPage = parseInt(resolvedParams.page || "1", 10) || 1;
+  const totalPages = Math.ceil(filteredTasks.length / ITEMS_PER_PAGE);
+  const paginatedTasks = filteredTasks.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+
+  // --- SHARED ALL TASKS TABLE ---
+  const membersList = db.teams.flatMap((t: any) => t.members);
+
+  const allAssignedTasksTable = (
+    <div className="mt-12">
+      <h2 className="text-2xl font-bold tracking-tight text-brand-text mb-6">All Assigned Pipeline</h2>
+      <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden shadow-sm overflow-x-auto">
+        <table className="w-full text-left whitespace-nowrap">
+          <thead className="bg-brand-bg text-brand-muted text-xs border-b border-brand-border">
+            <tr>
+               <th className="p-3 font-bold uppercase tracking-wider">Task Title</th>
+               <th className="p-3 font-bold uppercase tracking-wider">Assigned To</th>
+               <th className="p-3 font-bold uppercase tracking-wider">Team</th>
+               <th className="p-3 font-bold uppercase tracking-wider">Type</th>
+               <th className="p-3 font-bold uppercase tracking-wider">Status</th>
+               <th className="p-3 font-bold uppercase tracking-wider">Drive Link</th>
+               <th className="p-3 font-bold uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-brand-border text-sm">
+             {[...db.tasks].sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()).map((task: any) => (
+                <EditableTaskRow 
+                   key={task.id} 
+                   task={task} 
+                   updateAction={updateTask.bind(null, task.id)}
+                   deleteAction={deleteTask.bind(null, task.id)}
+                   membersList={membersList}
+                />
+             ))}
+             {db.tasks.length === 0 && (
+               <tr>
+                 <td colSpan={7} className="p-4 text-center text-brand-muted font-bold">No tasks assigned yet.</td>
+               </tr>
+             )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex bg-brand-bg text-brand-text h-screen overflow-hidden">
@@ -43,37 +125,39 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
         
         {activeTab === "inbox" && (
           <div>
-            <header className="flex justify-between items-center mb-8">
+            <header className="flex justify-between items-center mb-2">
               <h1 className="text-3xl font-bold tracking-tight text-brand-text">AI Evaluation Inbox</h1>
             </header>
 
+            <AdminInboxFilters totalPages={totalPages} currentPage={currentPage} />
+
             <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-left">
-                <thead className="bg-brand-bg text-brand-muted text-sm border-b border-brand-border">
+                <thead className="bg-brand-bg text-brand-muted text-xs border-b border-brand-border">
                   <tr>
-                    <th className="p-5 font-bold uppercase tracking-wider">Team Member</th>
-                    <th className="p-5 font-bold uppercase tracking-wider">Submission Task</th>
-                    <th className="p-5 font-bold uppercase tracking-wider">Status</th>
-                    <th className="p-5 font-bold uppercase tracking-wider">Modify AI Score</th>
-                    <th className="p-5 font-bold uppercase tracking-wider">Actions</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">Team Member</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">Submission Task</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">Status</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">Modify AI Score</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-border text-sm">
-                  {db.tasks.map((task: any) => (
+                  {paginatedTasks.map((task: any) => (
                     <tr key={task.id} className="hover:bg-brand-bg transition">
-                      <td className="p-5 font-bold">{task.assignedTo} <span className="font-normal text-brand-muted ml-2 text-xs">({task.team})</span></td>
-                      <td className="p-5 font-medium">
-                        {task.type === 'skill' ? <span className="bg-[#A9CBE2]/20 text-[#5A87A8] px-2 py-1 rounded text-xs mr-2 border border-[#A9CBE2]/50 font-bold uppercase">Skill</span> : null}
+                      <td className="p-3 font-bold">{task.assignedTo} <span className="font-normal text-brand-muted ml-2 text-xs">({task.team})</span></td>
+                      <td className="p-3 font-medium text-sm">
+                        {task.type === 'skill' ? <span className="bg-[#A9CBE2]/20 text-[#5A87A8] px-2 py-0.5 rounded text-[10px] mr-2 border border-[#A9CBE2]/50 font-bold uppercase tracking-widest">Skill</span> : null}
                         {task.title}
                       </td>
-                      <td className="p-5">
+                      <td className="p-3">
                         {task.status === "Scored" ? (
-                          <span className="px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold">Scored</span>
+                          <span className="px-3 py-1 bg-green-50 text-green-700 rounded-lg text-xs font-bold">Scored</span>
                         ) : (
-                          <span className="px-3 py-1.5 bg-[#F7E7A6]/50 text-amber-800 rounded-lg text-xs font-bold">Review</span>
+                          <span className="px-3 py-1 bg-[#F7E7A6]/50 text-amber-800 rounded-lg text-xs font-bold">Review</span>
                         )}
                       </td>
-                      <td className="p-5">
+                      <td className="p-3">
                         <form 
                           action={async (formData) => {
                              "use server"
@@ -91,21 +175,21 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                             placeholder="N/A"
                             min="0"
                             max="100"
-                            className="w-20 p-2 border border-brand-border rounded-lg bg-brand-input font-bold"
+                            className="w-16 p-1.5 border border-brand-border rounded-lg bg-brand-input font-bold text-center text-sm"
                           />
-                          <button type="submit" className="px-3 py-2 bg-[#C8B6E2] hover:bg-[#b09bc9] text-white font-bold rounded-lg transition shadow-sm">
+                          <button type="submit" className="px-3 py-1.5 bg-[#C8B6E2] hover:bg-[#b09bc9] text-white font-bold rounded-lg transition shadow-sm text-xs">
                             Save
                           </button>
                         </form>
                       </td>
-                      <td className="p-5">
+                      <td className="p-3">
                          <DeleteButton action={deleteTask.bind(null, task.id)} />
                       </td>
                     </tr>
                   ))}
-                  {db.tasks.length === 0 && (
+                  {paginatedTasks.length === 0 && (
                      <tr>
-                        <td colSpan={5} className="p-5 text-center text-brand-muted font-bold">No tasks in the inbox.</td>
+                        <td colSpan={5} className="p-6 text-center text-brand-muted font-bold">No tasks found globally with current filters.</td>
                      </tr>
                   )}
                 </tbody>
@@ -140,7 +224,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                    <div>
                      <label className="block text-sm font-bold text-brand-muted mb-2">Assign To Member</label>
                      <select name="assignedTo" className="w-full bg-brand-input border border-brand-border rounded-lg p-4 font-medium appearance-none">
-                       {db.teams.flatMap((t: any) => t.members).map((member: string) => (
+                       {membersList.map((member: string) => (
                            <option key={member} value={member}>{member}</option>
                        ))}
                      </select>
@@ -157,6 +241,8 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                  </button>
                </form>
             </div>
+
+            {allAssignedTasksTable}
            </div>
         )}
 
@@ -205,6 +291,8 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                  </button>
                </form>
             </div>
+
+            {allAssignedTasksTable}
            </div>
         )}
 

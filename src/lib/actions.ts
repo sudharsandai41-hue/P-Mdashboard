@@ -112,6 +112,27 @@ export async function deleteTask(taskId: string) {
   revalidatePath("/member-dashboard");
 }
 
+export async function updateTask(taskId: string, formData: FormData) {
+  const title = formData.get("title") as string;
+  const assignedTo = formData.get("assignedTo") as string;
+  const driveLink = formData.get("driveLink") as string;
+
+  const { data: teamsData } = await supabase.from('teams').select('*');
+  const tData = teamsData?.find(t => t.members.includes(assignedTo));
+  const team = tData ? tData.name : "General";
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ title, assignedTo, driveLink, team, updatedAt: new Date().toISOString() })
+    .eq('id', taskId);
+
+  if (error) console.error("Error updating task:", error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/member-dashboard");
+  revalidatePath("/main-dashboard");
+}
+
 export async function addSkill(formData: FormData) {
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
