@@ -63,20 +63,20 @@ export default async function MainDashboard(props: { searchParams: Promise<{ fil
   const activeFilterMembers = filter === 'design' ? designMembers : filter === '3d' ? d3Members : allMembers;
   const activeFilterTasks = filter === 'design' ? designTasks : filter === '3d' ? d3Tasks : allTasks;
 
-  const individualStats = activeFilterMembers.map((member) => {
+  const individualStats = activeFilterMembers.map((member: any) => {
       const mTasks = activeFilterTasks.filter((t: any) => t.assignedTo.toLowerCase() === member.toLowerCase());
       const avg = calcAvg(mTasks);
       const team = designMembers.includes(member) ? "Design" : "3D";
       return { name: member, team, tasksCount: mTasks.length, avgScore: avg };
-  }).sort((a, b) => {
+  }).sort((a: any, b: any) => {
       if (a.avgScore === null) return 1;
       if (b.avgScore === null) return -1;
       return b.avgScore - a.avgScore;
   });
 
   // Smart Insights Alerts
-  const topPerformers = individualStats.filter(u => u.avgScore !== null && u.avgScore >= 90).map(u => u.name);
-  const lowPerformers = individualStats.filter(u => u.avgScore !== null && u.avgScore < 60).map(u => u.name);
+  const topPerformers = individualStats.filter((u: any) => u.avgScore !== null && u.avgScore >= 90).map((u: any) => u.name);
+  const lowPerformers = individualStats.filter((u: any) => u.avgScore !== null && u.avgScore < 60).map((u: any) => u.name);
   const pendingReviewsCount = activeTasks.filter((t: any) => t.status === "Review").length;
 
   return (
@@ -248,7 +248,7 @@ export default async function MainDashboard(props: { searchParams: Promise<{ fil
                        </tr>
                     </thead>
                     <tbody>
-                       {individualStats.map((u, i) => {
+                       {individualStats.map((u: any, i: any) => {
                           let rowClass = "border-b border-brand-border/30 transition-colors hover:bg-brand-bg/50";
                           let badge = <span className="text-brand-muted font-bold text-xs">-</span>;
                           if (u.avgScore !== null && u.avgScore >= 90) {
