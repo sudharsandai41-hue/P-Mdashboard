@@ -57,7 +57,10 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
 
   const allAssignedTasksTable = (
     <div className="mt-12">
-      <h2 className="text-2xl font-bold tracking-tight text-brand-text mb-6">All Assigned Pipeline</h2>
+      <h2 className="text-2xl font-bold tracking-tight text-brand-text mb-2">All Assigned Pipeline</h2>
+      
+      <AdminInboxFilters totalPages={totalPages} currentPage={currentPage} />
+
       <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden shadow-sm overflow-x-auto">
         <table className="w-full text-left whitespace-nowrap">
           <thead className="bg-brand-bg text-brand-muted text-xs border-b border-brand-border">
@@ -72,7 +75,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-border text-sm">
-             {[...db.tasks].sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()).map((task: any) => (
+             {paginatedTasks.map((task: any) => (
                 <EditableTaskRow 
                    key={task.id} 
                    task={task} 
@@ -81,7 +84,7 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
                    membersList={membersList}
                 />
              ))}
-             {db.tasks.length === 0 && (
+             {paginatedTasks.length === 0 && (
                <tr>
                  <td colSpan={7} className="p-4 text-center text-brand-muted font-bold">No tasks assigned yet.</td>
                </tr>
