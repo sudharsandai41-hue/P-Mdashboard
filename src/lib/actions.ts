@@ -194,6 +194,30 @@ export async function validateLogin(role: string, userId: string): Promise<boole
   
   if (!team || !team.members) return false;
   
-  // Check if member exists in the team roster in Supabase
   return team.members.some((member: string) => member.toLowerCase() === userId.toLowerCase());
+}
+
+export async function updateTeamMember(teamName: string, oldName: string, formData: FormData) {
+  const newName = formData.get("newName") as string;
+  if (!newName || newName.trim() === "" || newName === oldName) return;
+
+  const finalName = newName.trim();
+
+  // 1. Fetch current team
+  const { data: team } = await supabase.from('teams').select('members').eq('name', teamName).single();
+  if (!team) return;
+
+  // 2. Update array
+  const updatedMembers = team.members.map((m: string) => m === oldName ? finalName : m);
+
+  // 3. Save to teams table
+  await supabase.from('teams').update({ members: updatedMembers }).eq('name', teamName);
+
+  // 4. Update existing tasks assigned to this person to maintain continuity
+  await supabase.from('tasks').update({ assignedTo: finalName }).eq('assignedTo', oldName);
+
+  revalidatePath("/");
+  revalidatePath("/admin");
+  revalidatePath("/main-dashboard");
+  revalidatePath("/member-dashboard");
 }

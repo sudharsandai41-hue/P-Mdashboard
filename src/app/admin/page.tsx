@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
-import { getDatabase, updateScore, addTask, bulkAddTasks, deleteTask, updateTask, addSkill, deleteSkill, updateSkill } from "@/lib/actions";
+import { getDatabase, updateScore, addTask, bulkAddTasks, deleteTask, updateTask, addSkill, deleteSkill, updateSkill, updateTeamMember } from "@/lib/actions";
 import DeleteButton from "@/components/DeleteButton";
 import EditableSkillRow from "@/components/EditableSkillRow";
 import EditableTaskRow from "@/components/EditableTaskRow";
+import EditableMemberRow from "@/components/EditableMemberRow";
 import AdminInboxFilters from "@/components/AdminInboxFilters";
 
 export default async function AdminDashboard({ searchParams }: { searchParams: Promise<{ tab?: string, search?: string, team?: string, status?: string, type?: string, sort?: string, page?: string }> }) {
@@ -415,11 +416,13 @@ export default async function AdminDashboard({ searchParams }: { searchParams: P
               {db.teams.map((team: any, i: number) => (
                 <div key={i} className="bg-brand-card p-6 border border-brand-border rounded-2xl shadow-sm">
                    <h2 className="text-xl font-bold mb-4 px-2">{team.name}</h2>
-                   <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2">
                      {team.members.map((member: string, j: number) => (
-                        <div key={j} className="p-3 bg-brand-bg border border-brand-border rounded-lg font-bold text-brand-text">
-                           {member}
-                        </div>
+                        <EditableMemberRow 
+                           key={j} 
+                           memberName={member} 
+                           updateAction={updateTeamMember.bind(null, team.name, member)} 
+                        />
                      ))}
                    </div>
                 </div>
